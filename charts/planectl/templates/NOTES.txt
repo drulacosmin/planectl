@@ -10,7 +10,7 @@ Watch progress:
 == Access ===================================================================
 
 Gitea (git server + CI runner)
-  NodePort: http://{{ .Values.host }}:{{ .Values.gitea.service.http.nodePort }}
+  http://{{ .Values.host }}:{{ .Values.gitea.service.http.nodePort }}
   Login: {{ .Values.gitea.gitea.admin.username }} / {{ .Values.gitea.gitea.admin.password }}
   Repo:  http://{{ .Values.host }}:{{ .Values.gitea.service.http.nodePort }}/{{ .Values.gitea.gitea.admin.username }}/demo-repo
 

@@ -11,11 +11,13 @@ host: localhost
 # The post-install hook that wires everything together.
 init:
   enabled: true
-  # base64-encoded kubeconfig for Gitea Actions runner to call kubectl from Docker containers.
-  # Required for crossplane-deploy workflow. Generate with:
+  # base64-encoded kubeconfig injected as a Secret into the tutorial pod.
+  # The tutorial startup patches the server URL automatically, so the sed below
+  # only needs to replace 127.0.0.1. kubernetes.docker.internal is in the TLS cert SANs.
+  # Generate with:
   #   kubectl config view --minify --flatten \
-  #     | sed 's|https://127.0.0.1:|https://host.docker.internal:|g' \
-  #     | base64 -w0
+  #     | sed 's|127.0.0.1|kubernetes.docker.internal|g' \
+  #     | base64
   kubeconfigB64: ""
 
 # ── AWS (optional) ──────────────────────────────────────────────────────────────

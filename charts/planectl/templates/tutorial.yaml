@@ -83,9 +83,17 @@ spec:
       containers:
         - name: tutorial
           image: node:20
-          # Symlink kubectl into /usr/local/bin so it's available in all shell types
-          # (login shells reset PATH via /etc/profile, so /app alone isn't enough).
-          command: ["sh", "-c", "ln -sf /app/kubectl /usr/local/bin/kubectl && exec node /app/server.js"]
+          # 1. Symlink kubectl so all shell types find it (login shells reset PATH).
+          # 2. Copy kubeconfig to a writable path and fix the API server hostname:
+          #    Docker Desktop's TLS cert covers kubernetes.docker.internal, NOT host.docker.internal.
+          command:
+            - sh
+            - -c
+            - |
+              ln -sf /app/kubectl /usr/local/bin/kubectl
+              cp /kube/config /tmp/kubeconfig
+              sed -i 's|https://host.docker.internal:|https://kubernetes.docker.internal:|g' /tmp/kubeconfig
+              exec env KUBECONFIG=/tmp/kubeconfig node /app/server.js
           env:
             - name: PORT
               value: {{ .Values.tutorial.port | quote }}
@@ -100,8 +108,8 @@ spec:
             - name: SHELL_CMD
               value: "/bin/bash --login"
             {{- if .Values.init.kubeconfigB64 }}
-            - name: KUBECONFIG
-              value: /kube/config
+            # Startup script copies /kube/config to /tmp/kubeconfig and patches the server URL.
+            # KUBECONFIG is set to /tmp/kubeconfig via exec env in the startup command above.
             {{- end }}
           ports:
             - name: http
