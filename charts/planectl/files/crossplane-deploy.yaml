@@ -1,0 +1,67 @@
+# .gitea/workflows/crossplane-deploy.yaml
+#
+# Triggered when any YAML file under crossplane/buckets/ is pushed to main.
+# Applies the manifest to the cluster and waits for the S3 bucket to become SYNCED and READY.
+#
+# Required secret (set automatically by planectl init job):
+#   KUBECONFIG_B64 -- base64-encoded kubeconfig
+
+name: Crossplane Deploy
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "crossplane/buckets/**.yaml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl && mv kubectl /usr/local/bin/kubectl
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG_B64 }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Verify cluster access
+        run: |
+          kubectl get nodes
+          kubectl get providers
+
+      - name: Apply bucket manifests
+        run: |
+          echo "Applying all manifests under crossplane/buckets/:"
+          find crossplane/buckets -name '*.yaml' | while read -r file; do
+            echo "-> Applying ${file}"
+            kubectl apply -f "${file}"
+          done
+
+      - name: Wait for buckets to be SYNCED and READY
+        run: |
+          echo "Waiting up to 4 min for buckets..."
+          for i in $(seq 1 24); do
+            NOT_READY=$(kubectl get buckets.s3.aws.upbound.io \
+              -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.conditions[?(@.type=="Synced")].status}{"\t"}{.status.conditions[?(@.type=="Ready")].status}{"\n"}{end}' \
+              2>/dev/null | grep -v "True	True" || true)
+            if [[ -z "$NOT_READY" ]]; then
+              echo "All buckets SYNCED and READY"
+              kubectl get buckets.s3.aws.upbound.io
+              exit 0
+            fi
+            echo "Waiting... ($i/24) not ready:"
+            echo "$NOT_READY"
+            sleep 10
+          done
+          echo "Timed out -- bucket status:"
+          kubectl get buckets.s3.aws.upbound.io
+          exit 1

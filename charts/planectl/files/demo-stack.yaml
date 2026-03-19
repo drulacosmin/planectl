@@ -1,0 +1,26 @@
+apiVersion: pulumi.com/v1
+kind: Stack
+metadata:
+  name: demo-stack
+  namespace: pulumi-system
+spec:
+  # Stack name -- used as a key for state
+  stack: dev
+
+  # Reference to the Program CR -- no git, no HTTP, no credentials needed
+  programRef:
+    name: demo-program
+
+  # State stored locally in the operator pod -- no S3, no Pulumi Cloud needed for demo
+  backend: "file:///tmp"
+
+  # Empty passphrase for demo -- required by the local file backend secrets manager
+  envRefs:
+    PULUMI_CONFIG_PASSPHRASE:
+      type: Literal
+      literal:
+        value: ""
+
+  destroyOnFinalize: true
+  refresh: true
+  continueResyncOnCommitMatch: true

@@ -1,4 +1,8 @@
 {{/*
+planectl helpers
+*/}}
+
+{{/*
 Expand the name of the chart.
 */}}
 {{- define "planectl.name" -}}
@@ -7,8 +11,6 @@ Expand the name of the chart.
 
 {{/*
 Create a default fully qualified app name.
-We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
-If release name contains chart name it will be used as a full name.
 */}}
 {{- define "planectl.fullname" -}}
 {{- if .Values.fullnameOverride }}
@@ -24,7 +26,7 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{/*
-Create chart name and version as used by the chart label.
+Create chart label.
 */}}
 {{- define "planectl.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
@@ -35,28 +37,22 @@ Common labels
 */}}
 {{- define "planectl.labels" -}}
 helm.sh/chart: {{ include "planectl.chart" . }}
-{{ include "planectl.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
+app.kubernetes.io/name: {{ include "planectl.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 
 {{/*
-Selector labels
+Gitea internal cluster URL (used by ArgoCD to reach the git server within the cluster).
 */}}
-{{- define "planectl.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "planectl.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
+{{- define "planectl.giteaClusterURL" -}}
+http://{{ .Release.Name }}-gitea-http.{{ .Release.Namespace }}.svc.cluster.local:3000
 {{- end }}
 
 {{/*
-Create the name of the service account to use
+Gitea external URL (used by the Actions runner, which runs Docker containers on the host).
 */}}
-{{- define "planectl.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "planectl.fullname" .) .Values.serviceAccount.name }}
-{{- else }}
-{{- default "default" .Values.serviceAccount.name }}
-{{- end }}
+{{- define "planectl.giteaExtURL" -}}
+http://{{ .Values.host }}:{{ .Values.gitea.service.http.nodePort }}
 {{- end }}

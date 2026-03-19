@@ -1,0 +1,90 @@
+# .gitea/workflows/bucket-deploy.yaml
+#
+# Manual workflow that creates an S3 bucket by committing a Crossplane Bucket
+# manifest into crossplane/buckets/. ArgoCD detects the commit and syncs it.
+#
+# Trigger: Gitea UI -> Actions tab -> "Deploy S3 Bucket" -> Run workflow
+
+name: Deploy S3 Bucket
+
+on:
+  workflow_dispatch:
+    inputs:
+      bucket_name:
+        description: "Bucket name -- must be globally unique in S3"
+        required: true
+        default: "my-demo-bucket"
+      external_name:
+        description: "S3 external name (leave blank to use bucket_name)"
+        required: false
+        default: ""
+      region:
+        description: "AWS region"
+        required: true
+        default: "eu-west-1"
+      deletion_policy:
+        description: "What happens when the Bucket object is deleted from the cluster"
+        required: true
+        default: "Delete"
+        type: choice
+        options:
+          - Delete
+          - Orphan
+      object_ownership:
+        description: "ACL ownership model (BucketOwnerEnforced disables ACLs)"
+        required: true
+        default: "BucketOwnerEnforced"
+        type: choice
+        options:
+          - BucketOwnerEnforced
+          - BucketOwnerPreferred
+          - ObjectWriter
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate bucket manifest
+        run: |
+          EXTERNAL="${{ inputs.external_name }}"
+          if [[ -z "$EXTERNAL" ]]; then
+            EXTERNAL="${{ inputs.bucket_name }}"
+          fi
+
+          mkdir -p crossplane/buckets
+          cat > crossplane/buckets/${{ inputs.bucket_name }}.yaml <<EOF
+          apiVersion: s3.aws.upbound.io/v1beta1
+          kind: Bucket
+          metadata:
+            name: ${{ inputs.bucket_name }}
+            annotations:
+              crossplane.io/external-name: ${EXTERNAL}
+          spec:
+            forProvider:
+              region: ${{ inputs.region }}
+              objectOwnership: ${{ inputs.object_ownership }}
+            providerConfigRef:
+              name: default
+            deletionPolicy: ${{ inputs.deletion_policy }}
+          EOF
+
+          echo "==> Manifest written:"
+          cat crossplane/buckets/${{ inputs.bucket_name }}.yaml
+
+      - name: Commit and push
+        run: |
+          git config user.email "gitea-actions@localhost"
+          git config user.name "Gitea Actions"
+          git add crossplane/buckets/${{ inputs.bucket_name }}.yaml
+
+          if git diff --staged --quiet; then
+            echo "No changes -- manifest is already up to date."
+          else
+            git commit -m "bucket: deploy ${{ inputs.bucket_name }} (${{ inputs.region }})"
+            git push origin main
+            echo "==> Pushed. ArgoCD will sync within ~3 minutes."
+          fi

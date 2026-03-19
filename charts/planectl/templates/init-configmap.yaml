@@ -1,0 +1,32 @@
+{{- if .Values.init.enabled }}
+# ConfigMap embedding the Python init script and all repo seed files.
+# Mounted at /scripts inside the init Job container.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: planectl-init-scripts
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "planectl.labels" . | nindent 4 }}
+data:
+  gitea-init.py: |
+{{ .Files.Get "files/gitea-init.py" | indent 4 }}
+  ci.yaml: |
+{{ .Files.Get "files/ci.yaml" | indent 4 }}
+  crossplane-deploy.yaml: |
+{{ .Files.Get "files/crossplane-deploy.yaml" | indent 4 }}
+  bucket-deploy.yaml: |
+{{ .Files.Get "files/bucket-deploy.yaml" | indent 4 }}
+  argocd-demo-bucket.yaml: |
+{{ .Files.Get "files/argocd-demo-bucket.yaml" | indent 4 }}
+  demo-stack.yaml: |
+{{ .Files.Get "files/demo-stack.yaml" | indent 4 }}
+  demo-program.yaml: |
+{{ .Files.Get "files/demo-program.yaml" | indent 4 }}
+  Pulumi.yaml: |
+{{ .Files.Get "files/Pulumi.yaml" | indent 4 }}
+  __main__.py: |
+{{ .Files.Get "files/__main__.py" | indent 4 }}
+  requirements.txt: |
+{{ .Files.Get "files/requirements.txt" | indent 4 }}
+{{- end }}

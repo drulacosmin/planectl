@@ -1,0 +1,3 @@
+name: demo
+runtime: python
+description: Team namespace provisioner -- creates namespaces + resource quotas for each team.

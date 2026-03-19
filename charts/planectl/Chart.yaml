@@ -1,24 +1,40 @@
 apiVersion: v2
 name: planectl
-description: A Helm chart for Kubernetes
-
-# A chart can be either an 'application' or a 'library' chart.
-#
-# Application charts are a collection of templates that can be packaged into versioned archives
-# to be deployed.
-#
-# Library charts provide useful utilities or functions for the chart developer. They're included as
-# a dependency of application charts to inject those utilities and functions into the rendering
-# pipeline. Library charts do not define any templates and therefore cannot be deployed.
+description: |
+  One-command GitOps demo stack: Gitea + ArgoCD + Crossplane + Pulumi Operator,
+  all wired together and ready to use. A single helm install bootstraps the full
+  pipeline -- git server, CD engine, cloud controller, and k8s operator.
 type: application
-
-# This is the chart version. This version number should be incremented each time you make changes
-# to the chart and its templates, including the app version.
-# Versions are expected to follow Semantic Versioning (https://semver.org/)
-version: 0.1.0
-
-# This is the version number of the application being deployed. This version number should be
-# incremented each time you make changes to the application. Versions are not expected to
-# follow Semantic Versioning. They should reflect the version the application is using.
-# It is recommended to use it with quotes.
-appVersion: "1.16.0"
+version: 0.2.0
+appVersion: "0.2.0"
+keywords:
+  - gitops
+  - gitea
+  - argocd
+  - crossplane
+  - pulumi
+  - kubernetes
+  - infrastructure-as-code
+home: https://github.com/drulacosmin/planectl
+sources:
+  - https://github.com/drulacosmin/planectl
+maintainers:
+  - name: drulacosmin
+    url: https://github.com/drulacosmin
+dependencies:
+  - name: gitea
+    version: "12.5.0"
+    repository: https://dl.gitea.com/charts/
+    condition: gitea.enabled
+  - name: argo-cd
+    version: "7.8.28"
+    repository: https://argoproj.github.io/argo-helm
+    condition: argo-cd.enabled
+  - name: crossplane
+    version: "1.18.5"
+    repository: https://charts.crossplane.io/stable
+    condition: crossplane.enabled
+  - name: pulumi-kubernetes-operator
+    version: "2.5.1"
+    repository: oci://ghcr.io/pulumi/helm-charts
+    condition: pulumi-kubernetes-operator.enabled

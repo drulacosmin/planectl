@@ -1,0 +1,23 @@
+{{- if and .Values.aws.enabled .Values.crossplane.enabled }}
+# Crossplane AWS providers (upbound-provider-family-aws + upbound-provider-aws-s3).
+# Applied as regular templates so they are installed alongside the Crossplane chart.
+# Crossplane will pull the provider images and make them Healthy (may take 3-5 min).
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: upbound-provider-family-aws
+  labels:
+    {{- include "planectl.labels" . | nindent 4 }}
+spec:
+  package: xpkg.upbound.io/upbound/provider-family-aws:v1.14.0
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: upbound-provider-aws-s3
+  labels:
+    {{- include "planectl.labels" . | nindent 4 }}
+spec:
+  package: xpkg.upbound.io/upbound/provider-aws-s3:v1.14.0
+{{- end }}

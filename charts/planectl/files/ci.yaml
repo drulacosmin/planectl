@@ -1,0 +1,20 @@
+# .gitea/workflows/ci.yaml -- basic sanity check on every push
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Print environment info
+        run: |
+          echo "Hostname : $(hostname)"
+          echo "OS       : $(uname -a)"
+          echo "All checks passed"

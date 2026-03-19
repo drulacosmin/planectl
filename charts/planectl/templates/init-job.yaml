@@ -1,0 +1,89 @@
+{{- if .Values.init.enabled }}
+# Post-install/post-upgrade hook that wires the GitOps stack together.
+# Runs the Python init script (from planectl-init-scripts ConfigMap) which:
+#   - waits for Gitea to be healthy
+#   - creates demo-repo and pushes all workflow/infra files
+#   - stores Action secrets (KUBECONFIG_B64, AWS creds)
+#   - creates the gitea-runner-token k8s Secret
+#   - creates ArgoCD repo Secret and Application CRs
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: planectl-init
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "planectl.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 900
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: planectl-init
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      serviceAccountName: planectl-init
+      restartPolicy: OnFailure
+      containers:
+        - name: init
+          image: python:3.12-slim
+          command:
+            - /bin/sh
+            - -c
+            - pip install httpx kubernetes --quiet && python /scripts/gitea-init.py
+          env:
+            - name: GITEA_URL
+              value: "http://{{ .Release.Name }}-gitea-http.{{ .Release.Namespace }}.svc.cluster.local:3000"
+            - name: GITEA_EXT_URL
+              value: {{ include "planectl.giteaExtURL" . | quote }}
+            - name: GITEA_CLUSTER_URL
+              value: {{ include "planectl.giteaClusterURL" . | quote }}
+            - name: GITEA_ADMIN_USER
+              value: {{ .Values.gitea.gitea.admin.username | quote }}
+            - name: GITEA_ADMIN_PASS
+              value: {{ .Values.gitea.gitea.admin.password | quote }}
+            - name: DEMO_REPO
+              value: "demo-repo"
+            - name: GITEA_NS
+              value: {{ .Release.Namespace | quote }}
+            - name: ARGOCD_NS
+              value: {{ .Release.Namespace | quote }}
+            - name: PULUMI_NS
+              value: {{ .Release.Namespace | quote }}
+            {{- if .Values.init.kubeconfigB64 }}
+            - name: KUBECONFIG_B64
+              value: {{ .Values.init.kubeconfigB64 | quote }}
+            {{- end }}
+            {{- if .Values.aws.enabled }}
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: planectl-aws-credentials
+                  key: accessKeyId
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: planectl-aws-credentials
+                  key: secretAccessKey
+            - name: AWS_REGION
+              value: {{ .Values.aws.region | quote }}
+            {{- end }}
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+      volumes:
+        - name: scripts
+          configMap:
+            name: planectl-init-scripts
+{{- end }}
