@@ -79,6 +79,10 @@ spec:
               value: "admin/demo-repo"
             - name: SHELL_CMD
               value: "nsenter -t 1 -m -u -i -n -p -- /bin/bash"
+            {{- if .Values.tutorial.hostKubeconfig }}
+            - name: KUBECONFIG
+              value: {{ .Values.tutorial.hostKubeconfig | quote }}
+            {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.tutorial.port }}

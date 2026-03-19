@@ -160,6 +160,11 @@ crossplane:
 tutorial:
   enabled: true
   port: 4000
+  # Path to kubeconfig on the host, visible after nsenter into the host mount namespace.
+  # Docker Desktop: /host_mnt/Users/<username>/.kube/config
+  # AWS k3s:        /etc/rancher/k3s/k3s.yaml
+  # Set with:  --set "tutorial.hostKubeconfig=/host_mnt/Users/$(whoami)/.kube/config"
+  hostKubeconfig: ""
 
 # ── Pulumi Kubernetes Operator subchart ───────────────────────────────────────────
 # Ref: https://github.com/pulumi/pulumi-kubernetes-operator
