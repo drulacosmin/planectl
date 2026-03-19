@@ -52,7 +52,9 @@ http://{{ .Release.Name }}-gitea-http.{{ .Release.Namespace }}.svc.cluster.local
 
 {{/*
 Gitea external URL (used by the Actions runner, which runs Docker containers on the host).
+runner.giteaHost must be reachable from inside Docker containers — NOT localhost.
+Docker Desktop: host.docker.internal  |  AWS: set runner.giteaHost to the EC2 private IP.
 */}}
 {{- define "planectl.giteaExtURL" -}}
-http://{{ .Values.host }}:{{ .Values.gitea.service.http.nodePort }}
+http://{{ .Values.runner.giteaHost }}:{{ .Values.gitea.service.http.nodePort }}
 {{- end }}

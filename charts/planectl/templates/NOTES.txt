@@ -15,9 +15,11 @@ Gitea (git server + CI runner)
   Repo:  http://{{ .Values.host }}:{{ .Values.gitea.service.http.nodePort }}/{{ .Values.gitea.gitea.admin.username }}/demo-repo
 
 ArgoCD (GitOps controller)
-  kubectl port-forward svc/{{ .Release.Name }}-argo-cd-argocd-server -n {{ .Release.Namespace }} 8080:80
   http://localhost:8080
   Login: admin / $(kubectl get secret -n {{ .Release.Namespace }} argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
+
+Tutorial (interactive terminal)
+  http://localhost:{{ .Values.tutorial.port }}
 
 == Next steps ================================================================
 

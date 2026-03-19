@@ -2,10 +2,10 @@
 # Override with --set key=value or -f custom-values.yaml
 
 # ── Host ────────────────────────────────────────────────────────────────────────
-# Public hostname or IP where Gitea NodePort is reachable from inside Docker containers
-# (used to build GITEA_INSTANCE_URL for the Actions runner).
-# Use "host.docker.internal" for Docker Desktop, or the VM's external IP for remote clusters.
-host: host.docker.internal
+# Hostname used for browser-facing URLs (NOTES output, tutorial links).
+# localhost works on Docker Desktop (NodePort + LoadBalancer both bind to localhost).
+# On AWS/remote: set to the server's public IP or hostname.
+host: localhost
 
 # ── Init Job ────────────────────────────────────────────────────────────────────
 # The post-install hook that wires everything together.
@@ -30,6 +30,10 @@ aws:
 runner:
   enabled: true
   dockerSocket: /var/run/docker.sock
+  # URL the runner uses to reach Gitea from *inside* Docker containers on the host.
+  # Docker containers cannot use "localhost" — they need the host's bridge address.
+  # Docker Desktop: host.docker.internal  |  AWS EC2/k3s: set to the EC2 private IP
+  giteaHost: host.docker.internal
 
 # ── Gitea subchart ───────────────────────────────────────────────────────────────
 # Passes values directly to the gitea/gitea chart.
@@ -103,6 +107,9 @@ argo-cd:
   applicationSet:
     enabled: false
   server:
+    service:
+      type: LoadBalancer
+      servicePortHttp: 8080
     resources:
       requests:
         cpu: 50m
@@ -156,15 +163,10 @@ crossplane:
 
 # ── Tutorial ─────────────────────────────────────────────────────────────────────
 # Interactive GitOps workshop UI with embedded terminal (node-pty + xterm.js)
-# Accessible at http://localhost:4000 on docker-desktop (LoadBalancer)
+# Accessible at http://localhost:4000 (LoadBalancer)
 tutorial:
   enabled: true
   port: 4000
-  # Path to kubeconfig on the host, visible after nsenter into the host mount namespace.
-  # Docker Desktop: /host_mnt/Users/<username>/.kube/config
-  # AWS k3s:        /etc/rancher/k3s/k3s.yaml
-  # Set with:  --set "tutorial.hostKubeconfig=/host_mnt/Users/$(whoami)/.kube/config"
-  hostKubeconfig: ""
 
 # ── Pulumi Kubernetes Operator subchart ───────────────────────────────────────────
 # Ref: https://github.com/pulumi/pulumi-kubernetes-operator

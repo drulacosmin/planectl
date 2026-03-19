@@ -15,8 +15,22 @@ data:
 {{ .Files.Get "files/tutorial/server.js" | indent 4 }}
   index.html: |
 {{ .Files.Get "files/tutorial/index.html" | indent 4 }}
+{{- if .Values.init.kubeconfigB64 }}
 ---
-# Deployment — initContainer installs npm deps, main container runs the app
+# Secret — kubeconfig for kubectl inside the tutorial terminal
+apiVersion: v1
+kind: Secret
+metadata:
+  name: planectl-kubeconfig
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "planectl.labels" . | nindent 4 }}
+type: Opaque
+data:
+  config: {{ .Values.init.kubeconfigB64 }}
+{{- end }}
+---
+# Deployment — initContainer installs npm deps + kubectl, main container runs the app
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -37,7 +51,6 @@ spec:
         app.kubernetes.io/name: planectl-tutorial
         app.kubernetes.io/instance: {{ .Release.Name }}
     spec:
-      hostPID: true
       initContainers:
         - name: npm-install
           image: node:20
@@ -50,6 +63,11 @@ spec:
               cp /config/server.js    /app/
               cp /config/index.html   /app/
               cd /app && npm install 2>&1
+              # Download kubectl into /app so the main container's PATH finds it
+              KUBECTL_VER=$(curl -sSL https://dl.k8s.io/release/stable.txt)
+              curl -sSLo /app/kubectl \
+                "https://dl.k8s.io/release/${KUBECTL_VER}/bin/linux/amd64/kubectl"
+              chmod +x /app/kubectl
           volumeMounts:
             - name: config
               mountPath: /config
@@ -77,21 +95,28 @@ spec:
               value: "8080"
             - name: DEMO_REPO
               value: "admin/demo-repo"
+            # Run bash directly in this container — no nsenter needed.
+            # kubectl is installed by the initContainer into /app.
             - name: SHELL_CMD
-              value: "nsenter -t 1 -m -u -i -n -p -- /bin/bash"
-            {{- if .Values.tutorial.hostKubeconfig }}
+              value: "/bin/bash --login"
+            - name: PATH
+              value: "/app:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+            {{- if .Values.init.kubeconfigB64 }}
             - name: KUBECONFIG
-              value: {{ .Values.tutorial.hostKubeconfig | quote }}
+              value: /kube/config
             {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.tutorial.port }}
               protocol: TCP
-          securityContext:
-            privileged: true
           volumeMounts:
             - name: app
               mountPath: /app
+            {{- if .Values.init.kubeconfigB64 }}
+            - name: kubeconfig
+              mountPath: /kube
+              readOnly: true
+            {{- end }}
           resources:
             requests:
               cpu: 50m
@@ -111,6 +136,11 @@ spec:
             name: planectl-tutorial
         - name: app
           emptyDir: {}
+        {{- if .Values.init.kubeconfigB64 }}
+        - name: kubeconfig
+          secret:
+            secretName: planectl-kubeconfig
+        {{- end }}
 ---
 # Service — LoadBalancer so docker-desktop exposes it directly on localhost:4000
 apiVersion: v1
