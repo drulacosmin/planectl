@@ -91,7 +91,12 @@ class GiteaClient:
         time.sleep(2)  # allow Gitea to finish the init commit
 
     def upsert_file(self, repo_path: str, local_path: str):
-        """Create or update a file in the repo via the Contents API."""
+        """Create or update a file in the repo via the Contents API.
+
+        Gitea API:
+          POST .../contents/{path}  — create (no sha)
+          PUT  .../contents/{path}  — update (requires sha of existing blob)
+        """
         if not os.path.exists(local_path):
             log(f"  SKIP  {local_path} not found")
             return
@@ -104,7 +109,8 @@ class GiteaClient:
             sha = existing.json()["sha"]
             r = self._put(url, json={"message": f"chore: update {repo_path}", "content": encoded, "sha": sha})
         else:
-            r = self._put(url, json={"message": f"chore: add {repo_path}", "content": encoded})
+            # File does not exist yet — use POST to create
+            r = self._post(url, json={"message": f"chore: add {repo_path}", "content": encoded})
         r.raise_for_status()
         log(f"  OK    {repo_path}")
 
