@@ -57,12 +57,12 @@ done
 # ── 2. ensure repo ────────────────────────────────────────────────────────────
 
 log "Ensuring repo '${DEMO_REPO}'..."
-STATUS=$(curl -sf -o /dev/null -w "%{http_code}" $AUTH "${GITEA_URL}/api/v1/repos/${GITEA_USER}/${DEMO_REPO}")
+STATUS=$(curl -s -o /dev/null -w "%{http_code}" $AUTH "${GITEA_URL}/api/v1/repos/${GITEA_USER}/${DEMO_REPO}")
 if [ "$STATUS" = "200" ]; then
   log "  Repo already exists."
 else
   gitea_post "/api/v1/user/repos" \
-    "{\"name\":\"${DEMO_REPO}\",\"private\":false,\"auto_init\":true,\"default_branch\":\"main\"}"
+    "{\"name\":\"${DEMO_REPO}\",\"private\":false,\"auto_init\":true,\"default_branch\":\"main\"}" > /dev/null
   log "  Repo created."
   sleep 2
 fi
@@ -108,7 +108,7 @@ set_secret() {
 }
 
 if [ -n "$KUBECONFIG_B64" ]; then
-  set_secret "KUBECONFIG_B64" "$KUBECONFIG_B64"
+  set_secret "KUBECONFIG_B64" "$(b64e "$KUBECONFIG_B64")"
   log "  OK    KUBECONFIG_B64"
 else
   log "  SKIP  KUBECONFIG_B64 (planectl-kubeconfig Secret not found)"
